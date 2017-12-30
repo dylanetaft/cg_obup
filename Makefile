@@ -8,14 +8,12 @@ dist:		clean all
 		mv plot64 bin
 		tar -czf cg_obup.tgz *
 
-plot64:	        plot.c shabal64.o helper64.o mshabal_sse4.o mshabal256_avx2.o 
-		$(CC) $(CFLAGS) -o plot64 plot.c shabal64.o helper64.o mshabal_sse4.o mshabal256_avx2.o -lpthread -std=gnu99
+plot64:	        plot.c helper64.o mshabal_sse4.o mshabal256_avx2.o 
+		$(CC) $(CFLAGS) -o plot64 plot.c helper64.o mshabal_sse4.o mshabal256_avx2.o -lpthread -std=gnu99
 
 helper64.o:	helper.c
 		$(CC) $(CFLAGS) -c -o helper64.o helper.c		
 
-shabal64.o:	shabal64.s
-		$(CC) $(CFLAGS) -c -o shabal64.o shabal64.s
 
 mshabal_sse4.o: mshabal_sse4.c
 		$(CC) $(CFLAGS) -c -o mshabal_sse4.o mshabal_sse4.c
@@ -28,4 +26,4 @@ test:		plot64
 		./test.pl
 
 clean:
-		rm -f mshabal_sse4.o mshabal256_avx2.o shabal64.o helper64.o plot64 helper64.o cg_obup.tgz bin/*
+		rm -f mshabal_sse4.o mshabal256_avx2.o helper64.o plot64 helper64.o cg_obup.tgz bin/*

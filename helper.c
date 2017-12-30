@@ -71,29 +71,8 @@ int getNumberOfCores() {
 #endif
 }
 
-// From http://www.binarytides.com/hostname-to-ip-address-c-sockets-linux/
-int hostname_to_ip(char * hostname , char* ip) {
-    struct hostent *he;
-    struct in_addr **addr_list;
-    int i;
-    
-    if ( (he = gethostbyname( hostname ) ) == NULL) {
-        herror("gethostbyname");
-        return 1;
-    }
-    
-    addr_list = (struct in_addr **) he->h_addr_list;
-    
-    for(i = 0; addr_list[i] != NULL; i++) {
-        //Return the first one;
-        strcpy(ip , inet_ntoa(*addr_list[i]) );
-        return 0;
-    }
-    
-    return 1;
-}
-
 unsigned long long freespace(char *path) {
+  #ifndef _WIN32 
 	struct statvfs fData;
 
 	if(statvfs(path,&fData) != 0) {
@@ -101,6 +80,11 @@ unsigned long long freespace(char *path) {
 		return 0;
 	}
 	return (unsigned long long)fData.f_bsize * fData.f_bfree;
+  
+  #else
+  return 100000000000000;
+  #endif
+  
 }
 
 // Free memory. Taken from http://stackoverflow.com/questions/2513505/how-to-get-available-memory-c-g
@@ -116,4 +100,3 @@ unsigned long long freemem() {
 	return (unsigned long long)pages * page_size;
 #endif
 }
-

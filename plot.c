@@ -66,49 +66,6 @@ char *outputdir = DEFAULTDIR;
 
 /* }}} */
 
-/* {{{ nonce             original algorithm */
-
-void nonce(uint64_t addr, uint64_t nonce, uint64_t cachepos) {
-    char final[32];
-    char gendata[16 + NONCE_SIZE];
-    char *xv;
-        
-    SET_NONCE(gendata, addr,  0);
-    SET_NONCE(gendata, nonce, 8);
-
-    shabal_context init_x, x;
-    uint32_t len = NONCE_SIZE + 16;
-
-    shabal_init(&init_x, 256);
-    for (uint32_t i = NONCE_SIZE; i > 0; i -= HASH_SIZE) {
-        memcpy(&x, &init_x, sizeof(init_x));
-        len -= i;
-        if (len > HASH_CAP)
-            len = HASH_CAP;
-        shabal(&x, &gendata[i], len);
-        shabal_close(&x, 0, 0, &gendata[i - HASH_SIZE]);
-    }
-        
-    shabal_init(&x, 256);
-    shabal(&x, gendata, 16 + NONCE_SIZE);
-    shabal_close(&x, 0, 0, final);
-
-    // XOR with final
-    uint64_t *start = (uint64_t*)gendata;
-    uint64_t *fint  = (uint64_t*)&final;
-
-    for (uint32_t i = 0; i < NONCE_SIZE; i += 32) {
-        *start ^= fint[0]; start++;
-        *start ^= fint[1]; start++;
-        *start ^= fint[2]; start++;
-        *start ^= fint[3]; start++;
-    }
-
-    // Sort them:
-    for (uint32_t i = 0; i < NONCE_SIZE; i += SCOOP_SIZE)
-        memmove(&cache[cachepos * SCOOP_SIZE + (uint64_t)i * staggersize], &gendata[i], SCOOP_SIZE);
-}
-
 /* }}} */
 /* {{{ mnonce            SSE4 version       */
 
@@ -287,13 +244,6 @@ work_i(void *x_void_ptr) {
                            (uint64_t)(i - startnonce + n + 3));
                     n += 3;
                 }
-                else {
-                    printf("SSE4 inefficiency\n");
-                    nonce(addr,(i + n), (uint64_t)(i - startnonce + n));
-                }
-            }
-            else { // STANDARD
-                nonce(addr, (i + n), (uint64_t)(i - startnonce + n));
             }
         }
     }
@@ -477,8 +427,9 @@ int main(int argc, char **argv) {
             exit(-1);
         }
     }
-    else {                    printf("Using ORIG core.\n");
+    else {                    printf("You must use SSE4 or AVX2 core on this platform.\n");
         selecttype = 0;
+        return 1;
     }
 
     if (addr == 0)
@@ -561,7 +512,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    mkdir(outputdir, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH);
+    //mkdir(outputdir, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH); //FIXME
 
     char name[100];
     char finalname[100];
@@ -570,13 +521,14 @@ int main(int argc, char **argv) {
 
     unlink(name); // no need to see if file exists: unlink can handle that
 
-    ofd = open(name, O_CREAT | O_LARGEFILE | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    ofd = open(name, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (ofd < 0) {
         printf("Error opening file %s\n", name);
         exit(1);
     }
 
     // pre-allocate space to prevent fragmentation
+    /* //TODO not supported on MINGW
     printf("Pre-allocating space for file (%ld bytes)...\n", (uint64_t)nonces * NONCE_SIZE);
     if ( posix_fallocate(ofd, 0, (uint64_t)nonces * NONCE_SIZE) != 0 ) {
         printf("File pre-allocation failed.\n");
@@ -585,13 +537,18 @@ int main(int argc, char **argv) {
     else {
         printf("Done pre-allocating space.\n");
     }
-
+    */
     // Threads:
     noncesperthread = (uint64_t)(staggersize / threads);
 
     if (noncesperthread == 0) {
         threads = staggersize;
         noncesperthread = 1;
+    }
+    
+    if (noncesperthread % 4 !=0 && selecttype == 1)  { 
+      printf("SSE4 is not a valid code path as nonces is not a multiple of threads * 4.\n");
+      return 1;
     }
 
     pthread_t worker[threads], writeworker;
@@ -618,8 +575,8 @@ int main(int argc, char **argv) {
             pthread_join(worker[i], NULL);
         }
 
-        for (i = threads * noncesperthread; i < staggersize; i++)     // Run leftover nonces
-            nonce(addr, startnonce + i, (uint64_t)i);
+      //  for (i = threads * noncesperthread; i < staggersize; i++)     // Run leftover nonces //FIXME
+      //      nonce(addr, startnonce + i, (uint64_t)i);
 
         // Write plot to disk:
         starttime = astarttime;
