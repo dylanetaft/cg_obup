@@ -1,3 +1,13 @@
+
+12/30/2017 - For reasons, I wanted to see how well this would work in MINGW on Windows in MSYS2, so I forked it, and made some changes to the code base to support it.  If it worked well, I'd try to wrap the code in IFDEFs to properly support windows.  It compiles, but works horribly, slow, and I think the threads occasionally get stuck.  Either way it doesn't generate plots as fast as it does on Linux.
+
+The codebase looks like it's built on bubble gum and glue over years. - dylanetaft 
+
+
+XPLOTTER doesn't work for me, I am using EXT4 drives in Windows for extra plotting power, my main miner is a Linux VM.  For whatever reason XPLOTTER can't write to drives exposed over the paragon ext4 driver.
+
+I'll leave this repo up, but, no, experiment over.  It is not worth trying to use cg_obup on Windows.  After trying - it makes me want to rewrite it in C++, using std::thread, or maybe boost.  The difficult bits of code could be lifted from cg_obup and moved to a new codebase.
+
 #CG_OBUP
 =============
 
